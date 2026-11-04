@@ -6,16 +6,14 @@ It replaces `Camera/EEG-Cam.py`.
 
 ## Install (recording PC)
 
-1. Create the environment from the repo root: `conda env create -f VideoEEG/environment.yml`
-2. Check the hardware: close any other camera software, then
-   `conda activate veeg` and `python -m VideoEEG.hw_check --cam 0`.
+1. Set up the PC, the repo and the environment as in the [repo README](../README.md).
+2. Check the hardware: close any other camera software, then from the repo folder run
+   `uv run python -m VideoEEG.hw_check --cam 0`.
    This writes a report to `%USERPROFILE%\.veeg_recorder\hw_check_cam0.txt`.
 3. Make one desktop shortcut per camera: right-click `VideoEEG\vEEG.bat` → Show more options → Send to →
    Desktop (create shortcut). In the shortcut's Properties, add ` --cam 0` (or ` --cam 1`) at the end of
    Target, and rename it, e.g. "vEEG camera 0".
-   `vEEG.bat` finds the `veeg` environment by itself (in `%USERPROFILE%\.conda\envs`, Miniforge, Anaconda
-   or Miniconda); no activation or `cd` is needed. If the environment is elsewhere, add its folder to the
-   list at the top of the .bat.
+   `vEEG.bat` uses the repo's `.venv`; no activation or `cd` is needed.
 
 Windows settings for 24/7 recording:
 - Power plan: never sleep. The recorder also asks Windows to stay awake while it runs.
@@ -84,5 +82,5 @@ Folder `%USERPROFILE%\.veeg_recorder\`:
 
 ## Development
 
-Tests use a synthetic camera and need ffmpeg: `python -m pytest VideoEEG/tests` from the repo root.
-`python -m VideoEEG.gui --cam 0 --fake` runs the GUI with the synthetic camera.
+Tests use a synthetic camera and need ffmpeg: `uv run pytest VideoEEG/tests` from the repo root.
+`uv run python -m VideoEEG.gui --cam 0 --fake` runs the GUI with the synthetic camera.

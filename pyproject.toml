@@ -1,0 +1,17 @@
+# Python environment for VideoEEG and MonitorCam (uv). Setup: README.md.
+# ffmpeg is not a Python package: install it separately (winget install Gyan.FFmpeg).
+[project]
+name = "pinnacle-veeg"
+version = "0"
+requires-python = "==3.11.*"
+dependencies = [
+    "numpy",
+    "PySide6<6.12",  # 6.12.0 kills the process when a slot raises while another slot is in processEvents()
+    "pyzmq",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.uv]
+package = false

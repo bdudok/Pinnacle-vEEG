@@ -1,14 +1,13 @@
 # MonitorCam
 
 Records one USB camera to video files, for monitoring a mouse after surgery and reviewing the video for
-status epilepticus. No triggering or TTL. Tested with the ELP-USB4KCAM01H-CFV.
+status epilepticus. No triggering or TTL. Used with the ELP-USB4KCAM01H-CFV.
 
 ## Install
 
-1. Install Git and Miniforge, and clone this repo as in the [repo README](../README.md).
-2. From the repo folder: `conda env create -f VideoEEG/environment.yml` (MonitorCam uses the `veeg` environment).
-3. Right-click `MonitorCam\MonitorCam.bat` → Show more options → Send to → Desktop (create shortcut).
-4. Set the Windows power plan to never sleep, and pause Windows Update during recordings. An update restart ends
+1. Set up the PC, the repo and the environment as in the [repo README](../README.md).
+2. Right-click `MonitorCam\MonitorCam.bat` → Show more options → Send to → Desktop (create shortcut).
+3. Set the Windows power plan to never sleep, and pause Windows Update during recordings. An update restart ends
    the recording.
 
 ## Use
@@ -38,8 +37,8 @@ Folder `%USERPROFILE%\.monitorcam\`:
 - `ffmpeg.log`: ffmpeg messages. Messages like `real-time buffer too full` mean frames were dropped: the PC is
   too slow for the encoder. Lower `width`/`height` (e.g. 1280x720) or set `encoder` to a GPU encoder.
 
-To list the camera's resolutions and frame rates, from the repo folder in a `veeg` prompt:
+To list the camera's resolutions and frame rates, in a Command Prompt:
 `ffmpeg -list_options true -f dshow -i video="<camera name as shown in the window>"`.
 Use a size listed for `vcodec=mjpeg`.
 
-`python -m MonitorCam.gui --fake` runs the app with a test pattern instead of a camera.
+`uv run python -m MonitorCam.gui --fake` runs the app with a test pattern instead of a camera.
