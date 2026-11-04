@@ -8,6 +8,8 @@ Recorder keeps the apps for the Bruker 2P setup.
 
 - `VideoEEG/`: video-EEG recorder. Continuous hourly video files and random-interval TTL pulses for
   aligning the video to the EEG. Usage, settings, output files: [VideoEEG/README.md](VideoEEG/README.md).
+- `MonitorCam/`: single USB camera recorder for post-surgery monitoring, no TTL. Usage:
+  [MonitorCam/README.md](MonitorCam/README.md).
 - `Camera/nncam.py`, `Camera/nncam.dll`: camera SDK, used by VideoEEG.
 - `Camera/EEG-Cam.py`: the old recorder, replaced by VideoEEG. Kept for reference; it needs PyQt5,
   pyqtgraph and opencv, which the `veeg` environment does not have.
