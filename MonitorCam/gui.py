@@ -33,7 +33,7 @@ RESTART_S = 5  # wait before restarting ffmpeg after it exits unexpectedly
 
 @dataclasses.dataclass
 class Settings:
-    device: str = ''            # DirectShow camera name; empty: the first camera found
+    device: str = ''            # DirectShow alternative name (unique per USB port); empty: the first camera found
     out_dir: str = str(Path('C:/MonitorCam') if os.name == 'nt' else Path.home() / 'MonitorCam')
     prefix: str = 'mouse'
     width: int = 1920
@@ -65,7 +65,7 @@ class Settings:
 
 
 def list_devices(ffmpeg):
-    """DirectShow video device names."""
+    """DirectShow video devices as (label, id) pairs; see parse_devices."""
     try:
         out = subprocess.run([ffmpeg, '-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'],
                              check=False, capture_output=True, text=True, timeout=20, creationflags=NO_WINDOW).stderr
@@ -75,7 +75,31 @@ def list_devices(ffmpeg):
 
 
 def parse_devices(text):
-    return re.findall(r'\]\s+"([^"]+)"\s+\(video\)', text)
+    """(label, id) for each video device in `ffmpeg -list_devices` output. The id is the alternative name
+    (@device_pnp_..., which contains the USB port path), so cameras with the same name can be told apart.
+    Repeated names get a number in the label."""
+    devices = []
+    video = False
+    for line in text.splitlines():
+        m = re.search(r'\]\s+"([^"]+)"\s+\((\w+)\)', line)
+        if m:
+            video = m.group(2) == 'video'
+            if video:
+                devices.append([m.group(1), m.group(1)])
+            continue
+        m = re.search(r'Alternative name\s+"([^"]+)"', line)
+        if m and video:
+            devices[-1][1] = m.group(1)
+            video = False
+    names = [name for name, _ in devices]
+    count = {}
+    result = []
+    for name, dev_id in devices:
+        if names.count(name) > 1:
+            count[name] = count.get(name, 0) + 1
+            name = f'{name} ({count[name]})'
+        result.append((name, dev_id))
+    return result
 
 
 def encoder_args(encoder, quality):
@@ -109,8 +133,9 @@ def recording_path(s, start):
     return Path(s.out_dir) / f'{s.prefix}-{start.strftime("%Y-%m-%dT%H-%M-%S")}.mkv'
 
 
-def ffmpeg_command(s, device, encoder=None, start=None, fake=False):
+def ffmpeg_command(s, device, encoder=None, start=None, fake=False, label=''):
     """Capture from the camera, write the preview to stdout, and record if `encoder` is given.
+    `device`: DirectShow name or alternative name. `label`: camera name for the file metadata.
     `start`: timezone-aware time when recording starts, for the file name and metadata."""
     if fake:
         source = ['-re', '-f', 'lavfi', '-i', f'testsrc2=s={s.width}x{s.height}:r={s.framerate}']
@@ -123,7 +148,7 @@ def ffmpeg_command(s, device, encoder=None, start=None, fake=False):
         cmd += ['-map', '0:v', *encoder_args(encoder, s.quality), '-pix_fmt', 'yuv420p', '-g', str(2 * s.framerate),
                 '-metadata', f'creation_time={utc}',
                 '-metadata', f'START_TIME_LOCAL={start.isoformat(timespec="milliseconds")}',
-                '-metadata', f'CAMERA={device}',
+                '-metadata', f'CAMERA={label} {device}'.strip(),
                 '-f', 'matroska', str(recording_path(s, start))]
     w, h = s.preview_size
     cmd += ['-map', '0:v', '-vf', f'fps={s.preview_fps},scale={w}:{h}', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1']
@@ -212,11 +237,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.device = QtWidgets.QComboBox()
         self.device.setMinimumWidth(250)
-        devices = ['test pattern'] if fake else list_devices(self.s.ffmpeg)
-        self.device.addItems(devices)
-        if self.s.device in devices:
-            self.device.setCurrentText(self.s.device)
-        self.device.currentTextChanged.connect(self.restart_preview)
+        devices = [('test pattern', 'test pattern')] if fake else list_devices(self.s.ffmpeg)
+        for label, dev_id in devices:
+            self.device.addItem(label, dev_id)
+        index = self.device.findData(self.s.device)
+        if index >= 0:
+            self.device.setCurrentIndex(index)
+        self.device.currentIndexChanged.connect(self.restart_preview)
         self.folder_button = QtWidgets.QPushButton('Select folder')
         self.folder_button.clicked.connect(self.choose_folder)
         self.folder_label = QtWidgets.QLabel(self.s.out_dir)
@@ -273,7 +300,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # --- ffmpeg ---
     def start_capture(self):
-        device = self.device.currentText()
+        device = self.device.currentData()
         if not device:
             return
         start = None
@@ -282,7 +309,8 @@ class MainWindow(QtWidgets.QMainWindow):
             start = datetime.datetime.now().astimezone()
             self.file = recording_path(self.s, start)
             self.note(f'recording to {self.file}')
-        self.capture = Capture(ffmpeg_command(self.s, device, self.encoder, start, self.fake), self.s.preview_size)
+        self.capture = Capture(ffmpeg_command(self.s, device, self.encoder, start, self.fake, self.device.currentText()),
+                               self.s.preview_size)
         self.died_at = None
 
     def stop_capture(self):
@@ -310,7 +338,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.rec_start = None
             self.note('recording stopped')
         else:
-            self.s.device = self.device.currentText()
+            self.s.device = self.device.currentData()
             self.s.out_dir = self.folder_label.text()
             self.s.prefix = re.sub(r'[^\w\-.]', '_', self.prefix.text().strip()) or 'mouse'
             self.prefix.setText(self.s.prefix)
